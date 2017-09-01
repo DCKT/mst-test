@@ -1,28 +1,7 @@
 import { types, process } from "mobx-state-tree"
 import axios from "axios"
 
-const User = types.model({
-  id: types.identifier(types.string),
-  name: types.optional(types.string, "")
-})
-
-const UsersStore = types
-  .model({
-    users: types.optional(types.array(User), []),
-    state: types.optional(types.enumeration(["pending", "done", "error"]), "pending")
-  })
-  .actions(self => ({
-    fetchAllUsers: process(function* fetchAllUsers() {
-      self.state = "pending"
-      try {
-        self.users = yield axios.get("http://localhost:3000/users").then(res => res.data)
-        self.state = "done"
-      } catch (e) {
-        console.error("Failed to fetch users", e)
-        self.state = "error"
-      }
-    })
-  }))
+import { User, UsersStore } from "./users"
 
 const Todo = types
   .model({
@@ -44,20 +23,27 @@ const Todo = types
 
 const TodoStore = types
   .model({
-    todos: types.optional(types.map(Todo), {})
+    todos: types.optional(types.array(Todo), [])
   })
   .views(self => ({
     get pendingCount() {
-      return self.todos.values().filter(todo => !todo.done).length
+      return self.todos.filter(todo => !todo.done).length
     },
     get completedCount() {
-      return self.todos.values().filter(todo => todo.done).length
+      return self.todos.filter(todo => todo.done).length
     }
   }))
   .actions(self => ({
     addTodo(id, name) {
       self.todos.set(id, Todo.create({ name }))
-    }
+    },
+    fetchAllTodos: process(function* fetchAllTodos() {
+      try {
+        self.todos = yield axios.get("http://localhost:3000/todos").then(res => res.data)
+      } catch (e) {
+        console.error("Failed to fetch users", e)
+      }
+    })
   }))
 
 const RootStore = types.compose("Store", UsersStore, TodoStore)
